@@ -60,10 +60,12 @@ def is_interesting(s):
     """Long encoded-looking blobs that are worth a human glance."""
     if len(s) < 32:
         return None
-    if BASE64_BLOB_RE.match(s):
-        return f"long base64 blob ({len(s)} chars)"
+    # hex first: any hex string is also base64-shaped, but a long even run
+    # of hex reads as a hash/token to an analyst, not as base64.
     if HEX_BLOB_RE.match(s):
         return f"long hex string ({len(s)} chars)"
+    if BASE64_BLOB_RE.match(s):
+        return f"long base64 blob ({len(s)} chars)"
     return None
 
 

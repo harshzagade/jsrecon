@@ -26,24 +26,24 @@ jsrecon https://target.com --timeout 15
 
 ```
 $ jsrecon http://127.0.0.1:8931
-[+] fetched http://127.0.0.1:8931/ (2 script files)
+[+] fetched http://127.0.0.1:8931 (2 script file(s))
 
 == ENDPOINTS (4) ==
-  /api/v1/users            <- http://127.0.0.1:8931/static/app.js
-  /api/v1/login            <- http://127.0.0.1:8931/static/app.js
+  /api/v1/users
+      <- http://127.0.0.1:8931/static/app.js
+  /api/v1/login
+      <- http://127.0.0.1:8931/static/app.js
+  /graphql
+      <- http://127.0.0.1:8931/static/app.js
   https://api.payments.example.com/charge
-                           <- http://127.0.0.1:8931/static/vendor.js
-  /graphql                 <- http://127.0.0.1:8931/static/app.js
-
-== SECRETS (2) ==
-  [!] AWS Access Key ID: AKIAIOSFODNN7EXAMPLE
-      <- http://127.0.0.1:8931/static/app.js
-  [!] Generic API key assignment: api_key = "sk_test_51H..."
-      <- http://127.0.0.1:8931/static/app.js
-
-== INTERESTING (1) ==
-  [~] long base64 blob (88 chars)
       <- http://127.0.0.1:8931/static/vendor.js
+
+== SECRETS (1) ==
+[!] AWS Access Key ID: AKIAIOSFODNN7EXAMPLE
+      <- http://127.0.0.1:8931/static/app.js
+
+== INTERESTING (0) ==
+  (none)
 ```
 
 ## How it works

@@ -50,15 +50,18 @@ def main(argv=None):
     for source, js_text in scripts:
         findings.extend(extract(js_text, source))
     findings = dedupe(findings)
+    only = None
     if args.secrets_only:
         findings = [f for f in findings if f["kind"] == "secret"]
+        only = ("secret",)
     elif args.endpoints_only:
         findings = [f for f in findings if f["kind"] == "endpoint"]
+        only = ("endpoint",)
 
     if args.json:
         out = render_json(findings, args.url, len(scripts), errors)
     else:
-        out = render_text(findings, args.url, len(scripts), errors)
+        out = render_text(findings, args.url, len(scripts), errors, only=only)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write(out + "\n")
