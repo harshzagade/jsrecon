@@ -1,0 +1,19 @@
+[project]
+name = "jsrecon"
+version = "1.0.0"
+description = "Recon Swiss-army pass over a site's JavaScript: harvest API endpoints, hardcoded secrets, and interesting strings. Stdlib-only."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Harsh Zagade", email = "harshnzagade@gmail.com" }]
+requires-python = ">=3.8"
+keywords = ["security", "recon", "javascript", "osint", "red-team"]
+
+[project.scripts]
+jsrecon = "jsrecon.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
