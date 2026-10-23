@@ -20,6 +20,7 @@ jsrecon https://target.com --secrets-only     # only the secret findings
 jsrecon https://target.com --endpoints-only   # only endpoints
 jsrecon https://target.com --json -o out.json # machine-readable output
 jsrecon https://target.com --timeout 15
+jsrecon https://target.com --no-sourcemaps  # skip source-map probing
 ```
 
 ## Sample output
@@ -44,6 +45,12 @@ $ jsrecon http://127.0.0.1:8931
 
 == INTERESTING (0) ==
   (none)
+
+== SOURCE MAPS (2) ==
+[*] original source path: webpack:///./src/admin/panel.js
+      <- http://127.0.0.1:8931/static/app.js (map: app.js.map)
+[*] original source path: src/utils/auth.js
+      <- http://127.0.0.1:8931/static/app.js (map: app.js.map)
 ```
 
 ## How it works
@@ -54,10 +61,15 @@ $ jsrecon http://127.0.0.1:8931
    - **endpoint** — absolute URL or root-relative path with letters in it
    - **secret** — matches a known credential pattern (AWS keys, tokens, JWTs, ...)
    - **interesting** — long base64/hex blobs that smell like encoded data
-4. Dedupes across files, keeps the source file for every hit.
+4. Mines source maps: for every JS file it resolves the
+   `//# sourceMappingURL=` comment (or probes `<file>.js.map`), and reports
+   the original pre-minification paths — plus scans any embedded
+   `sourcesContent` through the same extraction pipeline.
+5. Dedupes across files, keeps the source file for every hit.
 
 ## Notes
 
 - Passive recon aid: it only GETs the page and its own script files.
 - Secret patterns are heuristic — verify before treating a hit as a live credential.
 - Respects `--timeout`; fetch failures are reported, not fatal.
+- Source-map probing is best-effort and silent: missing maps never fail the scan.

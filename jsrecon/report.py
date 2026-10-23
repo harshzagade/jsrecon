@@ -2,14 +2,15 @@
 import json
 
 
+_KINDS = (("endpoint", "ENDPOINTS", "  "),
+          ("secret", "SECRETS", "[!] "),
+          ("interesting", "INTERESTING", "[~] "),
+          ("sourcemap", "SOURCE MAPS", "[*] "))
+
+
 def render_text(findings, page_url, script_count, errors, only=None):
-    kinds = ([("endpoint", "ENDPOINTS", "  "),
-              ("secret", "SECRETS", "[!] "),
-              ("interesting", "INTERESTING", "[~] ")] if only is None
-             else [k for k in (("endpoint", "ENDPOINTS", "  "),
-                               ("secret", "SECRETS", "[!] "),
-                               ("interesting", "INTERESTING", "[~] "))
-                   if k[0] in only])
+    kinds = (_KINDS if only is None
+             else [k for k in _KINDS if k[0] in only])
     lines = [f"[+] fetched {page_url} ({script_count} script file(s))"]
     if errors:
         lines.append("[!] fetch errors:")
