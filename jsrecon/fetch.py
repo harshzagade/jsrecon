@@ -1,7 +1,8 @@
 """Fetch HTML pages and their linked JavaScript files. Stdlib only."""
+import json
 import re
 import urllib.request
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 SCRIPT_SRC_RE = re.compile(
     r"<script\b[^>]*\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
@@ -10,6 +11,10 @@ INLINE_SCRIPT_RE = re.compile(
     re.IGNORECASE | re.DOTALL)
 
 DEFAULT_UA = "jsrecon/1.0 (+https://github.com/harshzagade/jsrecon)"
+
+CDX_API = "https://web.archive.org/cdx/search/cdx"
+ARCHIVE_PREFIX = "https://web.archive.org/web/"
+WAYBACK_CDX_LIMIT = 5000
 
 
 class FetchError(Exception):
@@ -50,4 +55,64 @@ def fetch_js_sources(page_url, timeout=10.0, user_agent=DEFAULT_UA,
         for i, block in enumerate(INLINE_SCRIPT_RE.findall(html)):
             if block.strip():
                 scripts.append((f"{page_url}#inline-{i}", block))
+    return scripts, errors
+
+
+def fetch_wayback_js(page_url, timeout=10.0, user_agent=DEFAULT_UA,
+                     max_files=50, cdx_base=CDX_API,
+                     archive_prefix=ARCHIVE_PREFIX):
+    """Pull the target domain's archived JS from the Wayback CDX API.
+
+    Queries CDX for ``*.js`` captures under the target's host, keeps the
+    newest capture per URL, and downloads up to *max_files* snapshots
+    (newest first) via ``<archive_prefix><timestamp>id_/<original>`` — the
+    ``id_`` suffix returns the raw, unrewritten file.
+
+    Returns ``(scripts, errors)`` shaped like :func:`fetch_js_sources` —
+    source labels are the archived snapshot URLs, so relative
+    sourceMappingURL comments still resolve against the archive. A CDX
+    failure is fatal (like a failed page fetch); individual snapshot
+    download failures are reported, never fatal.
+    """
+    host = urlparse(page_url).hostname
+    if not host:
+        raise FetchError(f"cannot determine host from {page_url!r}")
+    query = (f"{cdx_base}?url={quote(host + '/*.js')}&output=json"
+             f"&filter=statuscode:200&limit={WAYBACK_CDX_LIMIT}")
+    try:
+        raw = _get(query, timeout, user_agent)[0]
+        rows = json.loads(raw)
+    except FetchError:
+        raise
+    except Exception as exc:
+        raise FetchError(f"Wayback CDX query failed: {exc}") from exc
+    if not rows or not isinstance(rows, list):
+        return [], [f"wayback: no archived .js captures for {host}"]
+    header, data = rows[0], rows[1:]
+    try:
+        ts_i, url_i = header.index("timestamp"), header.index("original")
+    except (ValueError, AttributeError) as exc:
+        raise FetchError(f"Wayback CDX returned an unexpected shape: {exc}")
+    newest = {}
+    for row in data:
+        try:
+            ts, orig = row[ts_i], row[url_i]
+        except IndexError:
+            continue
+        if not orig or urlparse(orig).scheme not in ("http", "https"):
+            continue
+        if orig not in newest or ts > newest[orig]:
+            newest[orig] = ts
+    if not newest:
+        return [], [f"wayback: no archived .js captures for {host}"]
+    ordered = sorted(newest.items(), key=lambda kv: kv[1],
+                     reverse=True)[:max_files]
+    scripts, errors = [], []
+    for orig, ts in ordered:
+        snap = f"{archive_prefix}{ts}id_/{orig}"
+        try:
+            text = _get(snap, timeout, user_agent)[0]
+            scripts.append((snap, text))
+        except FetchError as exc:
+            errors.append(str(exc))
     return scripts, errors

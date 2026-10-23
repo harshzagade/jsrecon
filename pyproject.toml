@@ -1,6 +1,6 @@
 [project]
 name = "jsrecon"
-version = "1.0.0"
+version = "1.1.0"
 description = "Recon Swiss-army pass over a site's JavaScript: harvest API endpoints, hardcoded secrets, and interesting strings. Stdlib-only."
 readme = "README.md"
 license = { text = "MIT" }

@@ -21,6 +21,8 @@ jsrecon https://target.com --endpoints-only   # only endpoints
 jsrecon https://target.com --json -o out.json # machine-readable output
 jsrecon https://target.com --timeout 15
 jsrecon https://target.com --no-sourcemaps  # skip source-map probing
+jsrecon https://target.com --wayback       # archived JS from the Wayback CDX API
+jsrecon https://target.com --wayback --wayback-max 20 --json -o archived.json
 ```
 
 ## Sample output
@@ -66,6 +68,21 @@ $ jsrecon http://127.0.0.1:8931
    the original pre-minification paths — plus scans any embedded
    `sourcesContent` through the same extraction pipeline.
 5. Dedupes across files, keeps the source file for every hit.
+
+## `--wayback` mode
+
+Instead of live-fetching, pulls the target domain's archived JavaScript from
+the Wayback Machine CDX API: queries `web.archive.org/cdx/search/cdx` for
+`*.js` captures under the target's host, keeps the newest capture per URL,
+and downloads up to `--wayback-max` snapshots (default 50, newest first)
+via `https://web.archive.org/web/<timestamp>id_/<url>`. Source-map probing
+applies to archived files too — old maps are often still in the archive.
+
+```
+$ jsrecon https://target.com --wayback
+[+] fetched https://target.com (12 script file(s)) via the Wayback Machine
+...
+```
 
 ## Notes
 

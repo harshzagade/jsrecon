@@ -8,10 +8,12 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("sourcemap", "SOURCE MAPS", "[*] "))
 
 
-def render_text(findings, page_url, script_count, errors, only=None):
+def render_text(findings, page_url, script_count, errors, only=None,
+                mode="live"):
     kinds = (_KINDS if only is None
              else [k for k in _KINDS if k[0] in only])
-    lines = [f"[+] fetched {page_url} ({script_count} script file(s))"]
+    via = " via the Wayback Machine" if mode == "wayback" else ""
+    lines = [f"[+] fetched {page_url} ({script_count} script file(s)){via}"]
     if errors:
         lines.append("[!] fetch errors:")
         lines.extend(f"    - {e}" for e in errors)
@@ -33,9 +35,10 @@ def _short(value, limit=90):
     return value if len(value) <= limit else value[:limit] + "..."
 
 
-def render_json(findings, page_url, script_count, errors):
+def render_json(findings, page_url, script_count, errors, mode="live"):
     return json.dumps({
         "target": page_url,
+        "mode": mode,
         "scripts_fetched": script_count,
         "fetch_errors": errors,
         "findings": findings,
