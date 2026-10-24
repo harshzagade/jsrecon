@@ -117,7 +117,12 @@ def extract(js_text, source):
 
 
 def dedupe(findings):
-    """Collapse identical (kind, value) hits, merging their sources."""
+    """Collapse identical (kind, value) hits, merging their sources.
+
+    Framework findings also union their evidence notes, since different
+    script files may carry different markers for the same stack.
+    """
+    from .fingerprint import merge_framework_detail
     merged = {}
     for f in findings:
         key = (f["kind"], f["value"])
@@ -125,6 +130,9 @@ def dedupe(findings):
             srcs = merged[key]["sources"]
             if f["source"] not in srcs:
                 srcs.append(f["source"])
+            if f["kind"] == "framework":
+                merged[key]["detail"] = merge_framework_detail(
+                    merged[key]["detail"], f["detail"])
         else:
             merged[key] = {"kind": f["kind"], "value": f["value"],
                            "detail": f["detail"], "sources": [f["source"]]}

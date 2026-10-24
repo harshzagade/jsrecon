@@ -4,6 +4,7 @@ import sys
 
 from . import __version__, sourcemap
 from .extract import dedupe, extract
+from .fingerprint import fingerprint
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
                     fetch_wayback_js)
 from .report import render_json, render_text
@@ -71,6 +72,7 @@ def main(argv=None):
     findings = []
     for source, js_text in scripts:
         findings.extend(extract(js_text, source))
+        findings.extend(fingerprint(js_text, source))
     script_count = len(scripts)
     if not args.no_sourcemaps:
         # Mine source maps: original paths become findings, and any embedded
@@ -86,6 +88,7 @@ def main(argv=None):
                 label = f"{source} [source map: {path}]"
                 scripts.append((label, text))
                 findings.extend(extract(text, label))
+                findings.extend(fingerprint(text, label))
     findings = dedupe(findings)
     only = None
     if args.secrets_only:

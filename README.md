@@ -59,15 +59,21 @@ $ jsrecon http://127.0.0.1:8931
 
 1. Fetches the page, collects every `<script src>` (resolved against the page URL).
 2. Downloads each JS file (optionally also inline `<script>` blocks).
-3. Pulls every quoted string out of the JS and classifies it:
+3. Fingerprints the front-end stack: React, Vue, Angular, Next.js, Nuxt,
+   Svelte and jQuery are detected from bundle markers (e.g.
+   `__REACT_DEVTOOLS_GLOBAL_HOOK__`, `ng-version`, `__NEXT_DATA__`), reported
+   in the FRAMEWORKS section with the matched evidence and any detected
+   version.
+4. Pulls every quoted string out of the JS and classifies it:
    - **endpoint** — absolute URL or root-relative path with letters in it
    - **secret** — matches a known credential pattern (AWS keys, tokens, JWTs, ...)
    - **interesting** — long base64/hex blobs that smell like encoded data
-4. Mines source maps: for every JS file it resolves the
+5. Mines source maps: for every JS file it resolves the
    `//# sourceMappingURL=` comment (or probes `<file>.js.map`), and reports
    the original pre-minification paths — plus scans any embedded
-   `sourcesContent` through the same extraction pipeline.
-5. Dedupes across files, keeps the source file for every hit.
+   `sourcesContent` through the same extraction pipeline (framework
+   fingerprinting included).
+6. Dedupes across files, keeps the source file for every hit.
 
 ## `--wayback` mode
 

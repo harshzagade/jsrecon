@@ -3,6 +3,7 @@ import json
 
 
 _KINDS = (("endpoint", "ENDPOINTS", "  "),
+          ("framework", "FRAMEWORKS", "[#] "),
           ("secret", "SECRETS", "[!] "),
           ("interesting", "INTERESTING", "[~] "),
           ("sourcemap", "SOURCE MAPS", "[*] "))
