@@ -37,6 +37,54 @@ SECRET_PATTERNS = [
 BASE64_BLOB_RE = re.compile(r"^[A-Za-z0-9+/]{40,}={0,2}$")
 HEX_BLOB_RE = re.compile(r"^[0-9a-fA-F]{32,}$")
 
+# Extensions that mark an endpoint as static-asset noise rather than a route.
+_STATIC_EXT_RE = re.compile(
+    r"(?i)\.(png|jpe?g|gif|svg|ico|css|woff2?|ttf|eot|map)$")
+# Extensions that mark an endpoint as a real server-side handler.
+_HANDLER_EXT_RE = re.compile(r"(?i)\.(json|php|asp|aspx|jsp|do|action|xml)$")
+# Path segments that read as API surface rather than UI chrome.
+_API_SEG_RE = re.compile(r"(?i)(^|/)api([/_-]|$)|/v[0-9]+(/|$)|\bgraphql\b")
+_INTERESTING_SEG_RE = re.compile(
+    r"(?i)(admin|login|auth|token|secret|debug|console|webhook|callback)")
+
+
+def score_endpoint(value):
+    """Score an endpoint string by how recon-worthy it looks.
+
+    Positive traits add, noise subtracts:
+
+    - API-shaped paths (``/api/...``, ``/v1/...``, ``/graphql``): +2
+    - query string present (parameterised route): +1
+    - handler extension (``.json``, ``.php``, ...): +1
+    - interesting segment (``admin``, ``login``, ``webhook``, ...): +1
+    - single-character final segment (``/a``, ``/x/2``): -2
+    - very short path (< 4 chars): -1
+    - static-asset extension (``.png``, ``.css``, ``favicon.ico``, ...): -2
+
+    Typical API routes land at 2-4; ``/favicon.ico`` lands at -2.
+    """
+    score = 0
+    path = value.split("?", 1)[0].rstrip("/")
+    segments = [s for s in path.split("/") if s]
+    if not segments:
+        return -2
+    last = segments[-1]
+    if len(last) == 1:
+        score -= 2
+    if len(path) < 4:
+        score -= 1
+    if _API_SEG_RE.search(path):
+        score += 2
+    if "?" in value:
+        score += 1
+    if _STATIC_EXT_RE.search(last):
+        score -= 2
+    elif _HANDLER_EXT_RE.search(last):
+        score += 1
+    if _INTERESTING_SEG_RE.search(path):
+        score += 1
+    return score
+
 
 def is_endpoint(s):
     """True for absolute URLs and plausible root-relative routes."""
@@ -107,7 +155,8 @@ def extract(js_text, source):
                              "detail": secret_label, "source": source})
         elif is_endpoint(s):
             findings.append({"kind": "endpoint", "value": s,
-                             "detail": "", "source": source})
+                             "detail": "", "source": source,
+                             "score": score_endpoint(s)})
         else:
             note = is_interesting(s)
             if note:
@@ -134,6 +183,9 @@ def dedupe(findings):
                 merged[key]["detail"] = merge_framework_detail(
                     merged[key]["detail"], f["detail"])
         else:
-            merged[key] = {"kind": f["kind"], "value": f["value"],
-                           "detail": f["detail"], "sources": [f["source"]]}
+            entry = {"kind": f["kind"], "value": f["value"],
+                     "detail": f["detail"], "sources": [f["source"]]}
+            if "score" in f:  # score is deterministic per value, keep it
+                entry["score"] = f["score"]
+            merged[key] = entry
     return list(merged.values())

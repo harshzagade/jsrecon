@@ -33,6 +33,9 @@ def build_parser():
                    help="print only secret findings")
     p.add_argument("--endpoints-only", action="store_true",
                    help="print only endpoint findings")
+    p.add_argument("--min-score", type=int, default=0, metavar="N",
+                   help="hide endpoints scoring below N (0 = keep all; "
+                        "/favicon.ico scores -2, typical API routes 2-4)")
     p.add_argument("--json", action="store_true",
                    help="machine-readable JSON output")
     p.add_argument("-o", "--output", metavar="FILE",
@@ -49,6 +52,9 @@ def main(argv=None):
         return 2
     if args.wayback_max < 1:
         print("error: --wayback-max must be >= 1", file=sys.stderr)
+        return 2
+    if args.min_score < 0:
+        print("error: --min-score must be >= 0", file=sys.stderr)
         return 2
     if args.wayback and args.include_inline:
         print("error: --include-inline is not supported with --wayback "
@@ -90,6 +96,15 @@ def main(argv=None):
                 findings.extend(extract(text, label))
                 findings.extend(fingerprint(text, label))
     findings = dedupe(findings)
+    dropped = 0
+    if args.min_score > 0:
+        kept = []
+        for f in findings:
+            if f["kind"] == "endpoint" and f.get("score", 0) < args.min_score:
+                dropped += 1
+            else:
+                kept.append(f)
+        findings = kept
     only = None
     if args.secrets_only:
         findings = [f for f in findings if f["kind"] == "secret"]
@@ -99,10 +114,11 @@ def main(argv=None):
         only = ("endpoint",)
 
     if args.json:
-        out = render_json(findings, args.url, script_count, errors, mode=mode)
+        out = render_json(findings, args.url, script_count, errors, mode=mode,
+                          min_score=args.min_score, dropped=dropped)
     else:
         out = render_text(findings, args.url, script_count, errors, only=only,
-                          mode=mode)
+                          mode=mode, min_score=args.min_score, dropped=dropped)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write(out + "\n")

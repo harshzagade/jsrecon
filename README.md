@@ -23,6 +23,7 @@ jsrecon https://target.com --timeout 15
 jsrecon https://target.com --no-sourcemaps  # skip source-map probing
 jsrecon https://target.com --wayback       # archived JS from the Wayback CDX API
 jsrecon https://target.com --wayback --wayback-max 20 --json -o archived.json
+jsrecon https://target.com --min-score 2   # hide low-value endpoints (noise)
 ```
 
 ## Sample output
@@ -89,6 +90,24 @@ $ jsrecon https://target.com --wayback
 [+] fetched https://target.com (12 script file(s)) via the Wayback Machine
 ...
 ```
+
+## Endpoint scoring (`--min-score`)
+
+Every endpoint finding carries a score of how recon-worthy it looks:
+
+| Signal | Effect |
+|--------|--------|
+| `/api/...`, `/v1/...`, `/graphql` | +2 |
+| query string (`?id=`) | +1 |
+| handler extension (`.json`, `.php`, ...) | +1 |
+| `admin` / `login` / `webhook` / ... segment | +1 |
+| single-char final segment (`/a`) | -2 |
+| very short path | -1 |
+| static asset (`.png`, `.css`, `favicon.ico`, ...) | -2 |
+
+`--min-score N` hides endpoints scoring below `N` (default 0 keeps
+everything) and reports how many were hidden, so `/favicon.ico` and friends
+stay out of the way on noisy bundles.
 
 ## Notes
 
