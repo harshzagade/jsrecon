@@ -3,6 +3,7 @@ import argparse
 import sys
 
 from . import __version__, sourcemap
+from .comments import extract_comments
 from .extract import dedupe, extract
 from .fingerprint import fingerprint
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
@@ -79,6 +80,7 @@ def main(argv=None):
     for source, js_text in scripts:
         findings.extend(extract(js_text, source))
         findings.extend(fingerprint(js_text, source))
+        findings.extend(extract_comments(js_text, source))
     script_count = len(scripts)
     if not args.no_sourcemaps:
         # Mine source maps: original paths become findings, and any embedded
@@ -95,6 +97,7 @@ def main(argv=None):
                 scripts.append((label, text))
                 findings.extend(extract(text, label))
                 findings.extend(fingerprint(text, label))
+                findings.extend(extract_comments(text, label))
     findings = dedupe(findings)
     dropped = 0
     if args.min_score > 0:

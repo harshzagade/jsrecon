@@ -69,12 +69,19 @@ $ jsrecon http://127.0.0.1:8931
    - **endpoint** — absolute URL or root-relative path with letters in it
    - **secret** — matches a known credential pattern (AWS keys, tokens, JWTs, ...)
    - **interesting** — long base64/hex blobs that smell like encoded data
-5. Mines source maps: for every JS file it resolves the
+5. Harvests comments separately (COMMENTS section): `//` and `/* */`
+   comments are pulled by a real scanner, not a regex, so `//` inside
+   string literals (`"https://..."`) and regex literals is not mistaken
+   for a comment. TODO/FIXME/XXX/HACK tags and comments mentioning a
+   URL or path get a detail note — devs leave internal URLs and
+   half-finished work in comments. SourceMappingURL directives are
+   skipped here (the source-map step mines those).
+6. Mines source maps: for every JS file it resolves the
    `//# sourceMappingURL=` comment (or probes `<file>.js.map`), and reports
    the original pre-minification paths — plus scans any embedded
    `sourcesContent` through the same extraction pipeline (framework
    fingerprinting included).
-6. Dedupes across files, keeps the source file for every hit.
+7. Dedupes across files, keeps the source file for every hit.
 
 ## `--wayback` mode
 

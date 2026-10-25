@@ -6,6 +6,7 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("framework", "FRAMEWORKS", "[#] "),
           ("secret", "SECRETS", "[!] "),
           ("interesting", "INTERESTING", "[~] "),
+          ("comment", "COMMENTS", "[c] "),
           ("sourcemap", "SOURCE MAPS", "[*] "))
 
 
