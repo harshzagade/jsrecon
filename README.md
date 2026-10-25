@@ -24,6 +24,7 @@ jsrecon https://target.com --no-sourcemaps  # skip source-map probing
 jsrecon https://target.com --wayback       # archived JS from the Wayback CDX API
 jsrecon https://target.com --wayback --wayback-max 20 --json -o archived.json
 jsrecon https://target.com --min-score 2   # hide low-value endpoints (noise)
+jsrecon https://target.com --headers     # flag wrong JS Content-Type / permissive CORS
 ```
 
 ## Sample output
@@ -82,6 +83,14 @@ $ jsrecon http://127.0.0.1:8931
    `sourcesContent` through the same extraction pipeline (framework
    fingerprinting included).
 7. Dedupes across files, keeps the source file for every hit.
+8. With `--headers`, every fetched JS response is checked (HEADERS
+   section): a missing or non-JavaScript Content-Type (e.g. `text/html`
+   standing in for a script) and `Access-Control-Allow-Origin: *`
+   (stronger note when combined with `Access-Control-Allow-Credentials:
+   true`). Accepted types are `application/javascript`,
+   `text/javascript` (RFC 9239) and legacy `application/x-javascript`.
+   Inline blocks have no response headers and are skipped; in
+   `--wayback` mode the archive's response headers are checked.
 
 ## `--wayback` mode
 

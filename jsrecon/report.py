@@ -7,7 +7,8 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("secret", "SECRETS", "[!] "),
           ("interesting", "INTERESTING", "[~] "),
           ("comment", "COMMENTS", "[c] "),
-          ("sourcemap", "SOURCE MAPS", "[*] "))
+          ("sourcemap", "SOURCE MAPS", "[*] "),
+          ("header", "HEADERS", "[h] "))
 
 
 def render_text(findings, page_url, script_count, errors, only=None,

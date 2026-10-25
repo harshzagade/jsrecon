@@ -6,6 +6,7 @@ from . import __version__, sourcemap
 from .comments import extract_comments
 from .extract import dedupe, extract
 from .fingerprint import fingerprint
+from .headers import check_js_headers
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
                     fetch_wayback_js)
 from .report import render_json, render_text
@@ -37,6 +38,9 @@ def build_parser():
     p.add_argument("--min-score", type=int, default=0, metavar="N",
                    help="hide endpoints scoring below N (0 = keep all; "
                         "/favicon.ico scores -2, typical API routes 2-4)")
+    p.add_argument("--headers", action="store_true",
+                   help="flag JS served without a JavaScript Content-Type "
+                        "or with permissive CORS (Access-Control-Allow-Origin: *)")
     p.add_argument("--json", action="store_true",
                    help="machine-readable JSON output")
     p.add_argument("-o", "--output", metavar="FILE",
@@ -61,16 +65,17 @@ def main(argv=None):
         print("error: --include-inline is not supported with --wayback "
               "(no live page is fetched)", file=sys.stderr)
         return 2
+    headers_out = {} if args.headers else None
     try:
         if args.wayback:
             scripts, errors = fetch_wayback_js(
                 args.url, timeout=args.timeout, user_agent=args.user_agent,
-                max_files=args.wayback_max)
+                max_files=args.wayback_max, headers_out=headers_out)
             mode = "wayback"
         else:
             scripts, errors = fetch_js_sources(
                 args.url, timeout=args.timeout, user_agent=args.user_agent,
-                include_inline=args.include_inline)
+                include_inline=args.include_inline, headers_out=headers_out)
             mode = "live"
     except FetchError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -98,6 +103,14 @@ def main(argv=None):
                 findings.extend(extract(text, label))
                 findings.extend(fingerprint(text, label))
                 findings.extend(extract_comments(text, label))
+    if headers_out is not None:
+        # Inline blocks have no response headers, so only fetched files
+        # appear here; source-map contents reuse their parent's headers
+        # and are not re-checked.
+        for source, hdrs in headers_out.items():
+            findings.extend(check_js_headers(
+                source, hdrs["content_type"],
+                hdrs["allow_origin"], hdrs["allow_credentials"]))
     findings = dedupe(findings)
     dropped = 0
     if args.min_score > 0:
