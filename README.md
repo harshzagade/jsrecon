@@ -26,6 +26,7 @@ jsrecon https://target.com --wayback --wayback-max 20 --json -o archived.json
 jsrecon https://target.com --min-score 2   # hide low-value endpoints (noise)
 jsrecon https://target.com --headers     # flag wrong JS Content-Type / permissive CORS
 jsrecon https://target.com --verify      # HEAD-check each endpoint: live / dead / unknown
+jsrecon https://target.com --html -o report.html  # single-file HTML report
 ```
 
 ## Sample output
@@ -141,6 +142,16 @@ report and JSON (`verified` / `http_status`):
 
 Only 404/410 are called dead, so a 403 or 500 on a real route is never
 reported as gone.
+
+## HTML report (`--html`)
+
+`--html` writes a single self-contained HTML file (no external
+resources): one collapsible `<details>` section per script file, each
+listing that file's findings, with a per-kind count summary up top.
+Harvested strings are HTML-escaped, so a payload-looking string in a
+bundle cannot break out of the report. `--html` and `--json` are
+mutually exclusive; combine with `-o` to write the file, or read it
+from stdout.
 
 ## Notes
 

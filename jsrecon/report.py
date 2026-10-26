@@ -1,4 +1,5 @@
 """Render findings as human-readable text or JSON."""
+import html
 import json
 
 
@@ -37,6 +38,70 @@ def render_text(findings, page_url, script_count, errors, only=None,
             for src in f["sources"]:
                 lines.append(f"      <- {src}")
     return "\n".join(lines)
+
+
+def render_html(findings, page_url, script_count, errors, only=None,
+                mode="live", min_score=0, dropped=0):
+    """Single-file HTML report: one collapsible section per script file.
+
+    Findings are grouped by their first source file, so each
+    ``<details>`` block reads as one file's harvest. Every value is
+    HTML-escaped (harvested strings can contain markup), and the page
+    needs no external resources — it is one self-contained file.
+    """
+    kinds = (_KINDS if only is None
+             else [k for k in _KINDS if k[0] in only])
+    shown = [f for f in findings
+             if any(f["kind"] == k[0] for k in kinds)]
+    by_source = {}
+    for f in shown:
+        src = f["sources"][0] if f["sources"] else "(unknown)"
+        by_source.setdefault(src, []).append(f)
+    esc = html.escape
+    via = " via the Wayback Machine" if mode == "wayback" else ""
+    parts = ["<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+             f"<title>jsrecon report: {esc(page_url)}</title>\n"
+             "<style>body{font-family:system-ui,sans-serif;max-width:900px;"
+             "margin:2em auto;padding:0 1em}details{border:1px solid #ccc;"
+             "border-radius:6px;padding:.5em 1em;margin:.75em 0}"
+             "summary{cursor:pointer;font-weight:600}li{word-break:break-all}"
+             ".meta{color:#555}</style>\n</head>\n<body>\n"
+             f"<h1>jsrecon report</h1>\n<p class=\"meta\">Target: {esc(page_url)}"
+             f"{esc(via)} — {script_count} script file(s), "
+             f"{len(shown)} finding(s)</p>\n"]
+    if errors:
+        parts.append("<h2>Fetch errors</h2>\n<ul>\n")
+        parts.extend(f"<li>{esc(e)}</li>\n" for e in errors)
+        parts.append("</ul>\n")
+    if dropped:
+        parts.append(f"<p class=\"meta\">{dropped} endpoint(s) hidden by "
+                     f"--min-score {min_score}</p>\n")
+    parts.append("<h2>Findings by kind</h2>\n<ul>\n")
+    for kind, title, _marker in kinds:
+        n = sum(1 for f in shown if f["kind"] == kind)
+        parts.append(f"<li>{esc(title)}: {n}</li>\n")
+    parts.append("</ul>\n")
+    for i, (src, group) in enumerate(by_source.items()):
+        open_attr = " open" if i == 0 else ""
+        parts.append(f"<details{open_attr}>\n"
+                     f"<summary>{esc(src)} ({len(group)} finding(s))"
+                     f"</summary>\n<ul>\n")
+        for f in group:
+            label = f"{f['kind']}: {f['detail'] + ': ' if f['detail'] else ''}{f['value']}"
+            if "verified" in f:
+                label += _verify_suffix(f)
+            parts.append(f"<li>{esc(label)}")
+            extra = [s for s in f["sources"][1:]]
+            if extra:
+                parts.append(f"<br><span class=\"meta\">also in: "
+                             + ", ".join(esc(s) for s in extra)
+                             + "</span>")
+            parts.append("</li>\n")
+        parts.append("</ul>\n</details>\n")
+    if not by_source:
+        parts.append("<p>(no findings)</p>\n")
+    parts.append("</body>\n</html>")
+    return "".join(parts)
 
 
 def _verify_suffix(f):

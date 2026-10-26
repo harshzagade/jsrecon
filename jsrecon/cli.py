@@ -9,7 +9,7 @@ from .fingerprint import fingerprint
 from .headers import check_js_headers
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
                     fetch_wayback_js)
-from .report import render_json, render_text
+from .report import render_html, render_json, render_text
 from .verify import attach_verification, verify_endpoints
 
 
@@ -47,6 +47,9 @@ def build_parser():
                         "or with permissive CORS (Access-Control-Allow-Origin: *)")
     p.add_argument("--json", action="store_true",
                    help="machine-readable JSON output")
+    p.add_argument("--html", action="store_true",
+                   help="single-file HTML report with a collapsible "
+                        "section per script file")
     p.add_argument("-o", "--output", metavar="FILE",
                    help="write report to FILE instead of stdout")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -64,6 +67,10 @@ def main(argv=None):
         return 2
     if args.min_score < 0:
         print("error: --min-score must be >= 0", file=sys.stderr)
+        return 2
+    if args.json and args.html:
+        print("error: --json and --html are mutually exclusive",
+              file=sys.stderr)
         return 2
     if args.wayback and args.include_inline:
         print("error: --include-inline is not supported with --wayback "
@@ -142,6 +149,9 @@ def main(argv=None):
     if args.json:
         out = render_json(findings, args.url, script_count, errors, mode=mode,
                           min_score=args.min_score, dropped=dropped)
+    elif args.html:
+        out = render_html(findings, args.url, script_count, errors, only=only,
+                          mode=mode, min_score=args.min_score, dropped=dropped)
     else:
         out = render_text(findings, args.url, script_count, errors, only=only,
                           mode=mode, min_score=args.min_score, dropped=dropped)
