@@ -25,6 +25,7 @@ jsrecon https://target.com --wayback       # archived JS from the Wayback CDX AP
 jsrecon https://target.com --wayback --wayback-max 20 --json -o archived.json
 jsrecon https://target.com --min-score 2   # hide low-value endpoints (noise)
 jsrecon https://target.com --headers     # flag wrong JS Content-Type / permissive CORS
+jsrecon https://target.com --verify      # HEAD-check each endpoint: live / dead / unknown
 ```
 
 ## Sample output
@@ -124,6 +125,22 @@ Every endpoint finding carries a score of how recon-worthy it looks:
 `--min-score N` hides endpoints scoring below `N` (default 0 keeps
 everything) and reports how many were hidden, so `/favicon.ico` and friends
 stay out of the way on noisy bundles.
+
+## Dead-endpoint checker (`--verify`)
+
+Harvested endpoints go stale, so `--verify` HEAD-fetches each surviving
+endpoint (resolved against the scanned page URL) and marks it in the
+report and JSON (`verified` / `http_status`):
+
+| Mark | Meaning |
+|------|---------|
+| `[live 200]` | answered 2xx/3xx, or 401/403/405 (route exists, access or HEAD refused) |
+| `[dead 404]` | 404/410 — the route is gone |
+| `[unknown 500]` | any other status — the server answered, but the route's state is unclear |
+| `[error]` | the request failed (DNS, timeout, connection refused) |
+
+Only 404/410 are called dead, so a 403 or 500 on a real route is never
+reported as gone.
 
 ## Notes
 

@@ -31,10 +31,20 @@ def render_text(findings, page_url, script_count, errors, only=None,
             lines.append("  (none)")
         for f in group:
             label = f"{marker}{f['detail'] + ': ' if f['detail'] else ''}{_short(f['value'])}"
+            if "verified" in f:
+                label += _verify_suffix(f)
             lines.append(label)
             for src in f["sources"]:
                 lines.append(f"      <- {src}")
     return "\n".join(lines)
+
+
+def _verify_suffix(f):
+    state = f["verified"]
+    status = f.get("http_status")
+    if status is not None:
+        return f" [{state} {status}]"
+    return f" [{state}]"
 
 
 def _short(value, limit=90):

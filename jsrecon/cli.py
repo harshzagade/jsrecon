@@ -10,6 +10,7 @@ from .headers import check_js_headers
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
                     fetch_wayback_js)
 from .report import render_json, render_text
+from .verify import attach_verification, verify_endpoints
 
 
 def build_parser():
@@ -38,6 +39,9 @@ def build_parser():
     p.add_argument("--min-score", type=int, default=0, metavar="N",
                    help="hide endpoints scoring below N (0 = keep all; "
                         "/favicon.ico scores -2, typical API routes 2-4)")
+    p.add_argument("--verify", action="store_true",
+                   help="HEAD-fetch each endpoint and mark it live, dead "
+                        "(404/410), unknown or error in the report")
     p.add_argument("--headers", action="store_true",
                    help="flag JS served without a JavaScript Content-Type "
                         "or with permissive CORS (Access-Control-Allow-Origin: *)")
@@ -128,6 +132,12 @@ def main(argv=None):
     elif args.endpoints_only:
         findings = [f for f in findings if f["kind"] == "endpoint"]
         only = ("endpoint",)
+    if args.verify:
+        endpoints = [f["value"] for f in findings if f["kind"] == "endpoint"]
+        results = verify_endpoints(endpoints, args.url,
+                                   timeout=args.timeout,
+                                   user_agent=args.user_agent)
+        attach_verification(findings, results)
 
     if args.json:
         out = render_json(findings, args.url, script_count, errors, mode=mode,
