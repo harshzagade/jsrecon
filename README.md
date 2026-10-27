@@ -143,6 +143,23 @@ report and JSON (`verified` / `http_status`):
 Only 404/410 are called dead, so a 403 or 500 on a real route is never
 reported as gone.
 
+## Endpoint hosts
+
+In the text report, absolute-URL endpoints group under their host
+(first-seen order), with the scanned site's own host marked
+`(this site)` — first-party vs third-party at a glance. Relative
+paths stay flat at the top, and a relative-only report renders
+exactly as before:
+
+```
+== ENDPOINTS (3) ==
+  /api/v1/users
+  example.com (this site):
+    https://example.com/charge
+  cdn.example.com:
+    https://cdn.example.com/track.js
+```
+
 ## Query parameters (PARAMS)
 
 Every endpoint's query string is mined for parameter names, summarised

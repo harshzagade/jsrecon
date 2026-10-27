@@ -2,6 +2,7 @@
 import html
 import json
 
+from .hosts import group_endpoints
 from .params import collect_params
 
 
@@ -12,6 +13,17 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("comment", "COMMENTS", "[c] "),
           ("sourcemap", "SOURCE MAPS", "[*] "),
           ("header", "HEADERS", "[h] "))
+
+
+def _append_finding(lines, f, marker, indent=None):
+    prefix = marker if indent is None else indent
+    label = (f"{prefix}{f['detail'] + ': ' if f['detail'] else ''}"
+             f"{_short(f['value'])}")
+    if "verified" in f:
+        label += _verify_suffix(f)
+    lines.append(label)
+    for src in f["sources"]:
+        lines.append(f"      <- {src}")
 
 
 def render_text(findings, page_url, script_count, errors, only=None,
@@ -32,13 +44,19 @@ def render_text(findings, page_url, script_count, errors, only=None,
         lines.append(f"== {title} ({len(group)}) ==")
         if not group:
             lines.append("  (none)")
+        if kind == "endpoint" and group:
+            # Absolute URLs group under their host; relative paths stay
+            # flat on top. A relative-only report renders as before.
+            for label, block in group_endpoints(group, page_url):
+                if label is not None:
+                    lines.append(f"  {label}:")
+                for f in block:
+                    _append_finding(lines, f, marker,
+                                    indent="    " if label is not None
+                                    else "  ")
+            continue
         for f in group:
-            label = f"{marker}{f['detail'] + ': ' if f['detail'] else ''}{_short(f['value'])}"
-            if "verified" in f:
-                label += _verify_suffix(f)
-            lines.append(label)
-            for src in f["sources"]:
-                lines.append(f"      <- {src}")
+            _append_finding(lines, f, marker)
     if only is None or "endpoint" in only:
         params = collect_params(findings)
         if params:
