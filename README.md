@@ -143,6 +143,22 @@ report and JSON (`verified` / `http_status`):
 Only 404/410 are called dead, so a 403 or 500 on a real route is never
 reported as gone.
 
+## Query parameters (PARAMS)
+
+Every endpoint's query string is mined for parameter names, summarised
+in a PARAMS section (parameter, endpoint count, first example
+endpoint) and in the JSON output's `query_params` block — the names a
+tester reaches for first when probing for injection points. Most-used
+parameters sort first; ties break alphabetically. The section only
+appears when endpoints with query strings were found, and it follows
+the same filtering as ENDPOINTS (so `--secrets-only` hides it).
+
+```
+== PARAMS (2) ==
+  id (3 endpoint(s)): /api/users?id=1
+  q (1 endpoint(s)): /search?q=x
+```
+
 ## HTML report (`--html`)
 
 `--html` writes a single self-contained HTML file (no external

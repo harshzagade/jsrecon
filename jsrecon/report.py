@@ -2,6 +2,8 @@
 import html
 import json
 
+from .params import collect_params
+
 
 _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("framework", "FRAMEWORKS", "[#] "),
@@ -37,6 +39,14 @@ def render_text(findings, page_url, script_count, errors, only=None,
             lines.append(label)
             for src in f["sources"]:
                 lines.append(f"      <- {src}")
+    if only is None or "endpoint" in only:
+        params = collect_params(findings)
+        if params:
+            lines.append("")
+            lines.append(f"== PARAMS ({len(params)}) ==")
+            for p in params:
+                lines.append(f"  {p['param']} ({p['count']} endpoint(s)): "
+                             f"{p['example']}")
     return "\n".join(lines)
 
 
@@ -81,6 +91,13 @@ def render_html(findings, page_url, script_count, errors, only=None,
         n = sum(1 for f in shown if f["kind"] == kind)
         parts.append(f"<li>{esc(title)}: {n}</li>\n")
     parts.append("</ul>\n")
+    params = collect_params(shown)
+    if params:
+        parts.append("<h2>Query parameters</h2>\n<ul>\n")
+        for p in params:
+            parts.append(f"<li>{esc(p['param'])} ({p['count']} endpoint(s)): "
+                         f"{esc(p['example'])}</li>\n")
+        parts.append("</ul>\n")
     for i, (src, group) in enumerate(by_source.items()):
         open_attr = " open" if i == 0 else ""
         parts.append(f"<details{open_attr}>\n"
@@ -125,5 +142,6 @@ def render_json(findings, page_url, script_count, errors, mode="live",
         "fetch_errors": errors,
         "min_score": min_score,
         "endpoints_dropped": dropped,
+        "query_params": collect_params(findings),
         "findings": findings,
     }, indent=2)
