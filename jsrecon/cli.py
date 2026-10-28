@@ -1,5 +1,6 @@
 """CLI: jsrecon <url> [options]."""
 import argparse
+import re
 import sys
 
 from . import __version__, sourcemap
@@ -32,6 +33,9 @@ def build_parser():
                    help="per-request timeout in seconds (default 10)")
     p.add_argument("--user-agent", default=DEFAULT_UA,
                    help="User-Agent header to send")
+    p.add_argument("--exclude", action="append", default=[], metavar="REGEX",
+                   help="skip script URLs matching REGEX (repeatable; "
+                        "e.g. analytics/tag-manager bundles)")
     p.add_argument("--secrets-only", action="store_true",
                    help="print only secret findings")
     p.add_argument("--endpoints-only", action="store_true",
@@ -68,6 +72,14 @@ def main(argv=None):
     if args.min_score < 0:
         print("error: --min-score must be >= 0", file=sys.stderr)
         return 2
+    exclude_res = []
+    for pat in args.exclude:
+        try:
+            exclude_res.append(re.compile(pat))
+        except re.error as exc:
+            print(f"error: --exclude pattern {pat!r} is not valid regex: {exc}",
+                  file=sys.stderr)
+            return 2
     if args.json and args.html:
         print("error: --json and --html are mutually exclusive",
               file=sys.stderr)
@@ -91,6 +103,18 @@ def main(argv=None):
     except FetchError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+    excluded = 0
+    if exclude_res:
+        kept = []
+        for source, js_text in scripts:
+            if any(rx.search(source) for rx in exclude_res):
+                excluded += 1
+                if headers_out is not None:
+                    headers_out.pop(source, None)
+            else:
+                kept.append((source, js_text))
+        scripts = kept
 
     findings = []
     for source, js_text in scripts:
@@ -148,13 +172,16 @@ def main(argv=None):
 
     if args.json:
         out = render_json(findings, args.url, script_count, errors, mode=mode,
-                          min_score=args.min_score, dropped=dropped)
+                          min_score=args.min_score, dropped=dropped,
+                          excluded=excluded)
     elif args.html:
         out = render_html(findings, args.url, script_count, errors, only=only,
-                          mode=mode, min_score=args.min_score, dropped=dropped)
+                          mode=mode, min_score=args.min_score, dropped=dropped,
+                          excluded=excluded)
     else:
         out = render_text(findings, args.url, script_count, errors, only=only,
-                          mode=mode, min_score=args.min_score, dropped=dropped)
+                          mode=mode, min_score=args.min_score, dropped=dropped,
+                          excluded=excluded)
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write(out + "\n")

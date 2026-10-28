@@ -28,7 +28,7 @@ def _append_finding(lines, f, marker, indent=None):
 
 
 def render_text(findings, page_url, script_count, errors, only=None,
-                mode="live", min_score=0, dropped=0):
+                mode="live", min_score=0, dropped=0, excluded=0):
     kinds = (_KINDS if only is None
              else [k for k in _KINDS if k[0] in only])
     via = " via the Wayback Machine" if mode == "wayback" else ""
@@ -36,6 +36,8 @@ def render_text(findings, page_url, script_count, errors, only=None,
     if errors:
         lines.append("[!] fetch errors:")
         lines.extend(f"    - {e}" for e in errors)
+    if excluded:
+        lines.append(f"[i] {excluded} script(s) excluded by --exclude")
     if dropped:
         lines.append(f"[i] {dropped} endpoint(s) hidden by --min-score "
                      f"{min_score}")
@@ -76,7 +78,7 @@ def render_text(findings, page_url, script_count, errors, only=None,
 
 
 def render_html(findings, page_url, script_count, errors, only=None,
-                mode="live", min_score=0, dropped=0):
+                mode="live", min_score=0, dropped=0, excluded=0):
     """Single-file HTML report: one collapsible section per script file.
 
     Findings are grouped by their first source file, so each
@@ -108,6 +110,9 @@ def render_html(findings, page_url, script_count, errors, only=None,
         parts.append("<h2>Fetch errors</h2>\n<ul>\n")
         parts.extend(f"<li>{esc(e)}</li>\n" for e in errors)
         parts.append("</ul>\n")
+    if excluded:
+        parts.append(f"<p class=\"meta\">{excluded} script(s) excluded by "
+                     f"--exclude</p>\n")
     if dropped:
         parts.append(f"<p class=\"meta\">{dropped} endpoint(s) hidden by "
                      f"--min-score {min_score}</p>\n")
@@ -160,7 +165,7 @@ def _short(value, limit=90):
 
 
 def render_json(findings, page_url, script_count, errors, mode="live",
-                min_score=0, dropped=0):
+                min_score=0, dropped=0, excluded=0):
     return json.dumps({
         "target": page_url,
         "mode": mode,
@@ -168,6 +173,7 @@ def render_json(findings, page_url, script_count, errors, mode="live",
         "fetch_errors": errors,
         "min_score": min_score,
         "endpoints_dropped": dropped,
+        "scripts_excluded": excluded,
         "query_params": collect_params(findings),
         "findings": findings,
     }, indent=2)

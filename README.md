@@ -27,6 +27,7 @@ jsrecon https://target.com --min-score 2   # hide low-value endpoints (noise)
 jsrecon https://target.com --headers     # flag wrong JS Content-Type / permissive CORS
 jsrecon https://target.com --verify      # HEAD-check each endpoint: live / dead / unknown
 jsrecon https://target.com --html -o report.html  # single-file HTML report
+jsrecon https://target.com --exclude vendor --exclude analytics  # skip noisy bundles
 ```
 
 ## Sample output
@@ -138,6 +139,15 @@ Every secret finding carries a severity, shown as `[HIGH]` / `[MED]` /
 | HIGH | AWS access keys and secret assignments, private key blocks, Stripe secret keys, GitHub and Slack tokens — live credentials usable as-is |
 | MED | JWTs, Bearer tokens, generic secret assignments — session/context-dependent |
 | LOW | Google API keys — commonly embedded in public clients (usually referrer-restricted, still worth a look) |
+
+## Script filter (`--exclude`)
+
+`--exclude REGEX` (repeatable) skips script URLs matching the pattern
+before any extraction runs — analytics, tag-manager and other noisy
+third-party bundles stay out of the report entirely (including their
+source maps and header checks). The report notes how many scripts were
+excluded, and `--json` carries the count as `scripts_excluded`. A bad
+regex fails fast with exit 2.
 
 ## Dead-endpoint checker (`--verify`)
 
