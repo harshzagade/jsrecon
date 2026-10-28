@@ -127,6 +127,18 @@ Every endpoint finding carries a score of how recon-worthy it looks:
 everything) and reports how many were hidden, so `/favicon.ico` and friends
 stay out of the way on noisy bundles.
 
+## Secret severity grading
+
+Every secret finding carries a severity, shown as `[HIGH]` / `[MED]` /
+`[LOW]` on the line and counted in the report header (`[i] Secrets: N
+(HIGH: x, MED: y, LOW: z)`); JSON findings carry a `severity` field.
+
+| Severity | Patterns |
+|----------|----------|
+| HIGH | AWS access keys and secret assignments, private key blocks, Stripe secret keys, GitHub and Slack tokens — live credentials usable as-is |
+| MED | JWTs, Bearer tokens, generic secret assignments — session/context-dependent |
+| LOW | Google API keys — commonly embedded in public clients (usually referrer-restricted, still worth a look) |
+
 ## Dead-endpoint checker (`--verify`)
 
 Harvested endpoints go stale, so `--verify` HEAD-fetches each surviving

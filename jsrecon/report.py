@@ -17,7 +17,8 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
 
 def _append_finding(lines, f, marker, indent=None):
     prefix = marker if indent is None else indent
-    label = (f"{prefix}{f['detail'] + ': ' if f['detail'] else ''}"
+    sev = f"[{f['severity']}] " if "severity" in f else ""
+    label = (f"{prefix}{sev}{f['detail'] + ': ' if f['detail'] else ''}"
              f"{_short(f['value'])}")
     if "verified" in f:
         label += _verify_suffix(f)
@@ -38,6 +39,12 @@ def render_text(findings, page_url, script_count, errors, only=None,
     if dropped:
         lines.append(f"[i] {dropped} endpoint(s) hidden by --min-score "
                      f"{min_score}")
+    secrets = [f for f in findings if f["kind"] == "secret"]
+    if secrets:
+        counts = {sev: sum(1 for f in secrets if f.get("severity") == sev)
+                  for sev in ("HIGH", "MED", "LOW")}
+        lines.append("[i] Secrets: {} (HIGH: {}, MED: {}, LOW: {})".format(
+            len(secrets), counts["HIGH"], counts["MED"], counts["LOW"]))
     for kind, title, marker in kinds:
         group = [f for f in findings if f["kind"] == kind]
         lines.append("")
@@ -122,7 +129,8 @@ def render_html(findings, page_url, script_count, errors, only=None,
                      f"<summary>{esc(src)} ({len(group)} finding(s))"
                      f"</summary>\n<ul>\n")
         for f in group:
-            label = f"{f['kind']}: {f['detail'] + ': ' if f['detail'] else ''}{f['value']}"
+            sev = f"[{f['severity']}] " if "severity" in f else ""
+            label = f"{f['kind']}: {sev}{f['detail'] + ': ' if f['detail'] else ''}{f['value']}"
             if "verified" in f:
                 label += _verify_suffix(f)
             parts.append(f"<li>{esc(label)}")

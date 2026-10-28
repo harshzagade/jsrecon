@@ -9,27 +9,31 @@ import re
 
 QUOTED_RE = re.compile(r"[\"'`]([^\"'`]{1,500})[\"'`]")
 
-# (label, compiled pattern) — order matters: first match wins.
+# (label, severity, compiled pattern) — order matters: first match wins.
+# Severity: HIGH = live credential usable as-is (cloud keys, private keys,
+# personal tokens); MED = session/assignment secrets whose exploitability
+# depends on context; LOW = keys commonly embedded in public clients
+# (Google API keys are usually referrer-restricted, but still worth a look).
 SECRET_PATTERNS = [
-    ("AWS Access Key ID",
+    ("AWS Access Key ID", "HIGH",
      re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
-    ("AWS secret key assignment",
+    ("AWS secret key assignment", "HIGH",
      re.compile(r"(?i)aws[_-]?secret[^A-Za-z0-9]{0,4}[A-Za-z0-9/+=]{32,}")),
-    ("Google API key",
+    ("Google API key", "LOW",
      re.compile(r"\bAIza[0-9A-Za-z\-_]{35}\b")),
-    ("GitHub token",
+    ("GitHub token", "HIGH",
      re.compile(r"\bgh[op]_[A-Za-z0-9]{36}\b")),
-    ("Slack token",
+    ("Slack token", "HIGH",
      re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{10,}\b")),
-    ("Stripe secret key",
+    ("Stripe secret key", "HIGH",
      re.compile(r"\bsk_(live|test)_[A-Za-z0-9]{16,}\b")),
-    ("JWT",
+    ("JWT", "MED",
      re.compile(r"\beyJ[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+")),
-    ("Bearer token",
+    ("Bearer token", "MED",
      re.compile(r"\bBearer\s+[A-Za-z0-9\-._~+/=]{16,}")),
-    ("Private key block",
+    ("Private key block", "HIGH",
      re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")),
-    ("Generic secret assignment",
+    ("Generic secret assignment", "MED",
      re.compile(r"(?i)\b(secret|passwd|password|pwd|api[_-]?key|apikey|auth[_-]?token)"
                 r"\b\s*[:=]\s*[\"']([^\"']{8,120})[\"']")),
 ]
@@ -98,9 +102,15 @@ def is_endpoint(s):
 
 def find_secret(s):
     """Return the secret label if *s* matches a credential pattern, else None."""
-    for label, pattern in SECRET_PATTERNS:
+    found = find_secret_detail(s)
+    return found[0] if found else None
+
+
+def find_secret_detail(s):
+    """Return ``(label, severity)`` for the first matching pattern, else None."""
+    for label, severity, pattern in SECRET_PATTERNS:
         if pattern.search(s):
-            return label
+            return label, severity
     return None
 
 
@@ -129,13 +139,14 @@ def extract(js_text, source):
     """
     findings = []
     secret_spans = []
-    for label, pattern in SECRET_PATTERNS:
+    for label, severity, pattern in SECRET_PATTERNS:
         for m in pattern.finditer(js_text):
             value = m.group(0)
             if len(value) > 140:
                 value = value[:140] + "..."
             findings.append({"kind": "secret", "value": value,
-                             "detail": label, "source": source})
+                             "detail": label, "severity": severity,
+                             "source": source})
             secret_spans.append((m.start(), m.end()))
     seen = set()
 
@@ -149,10 +160,12 @@ def extract(js_text, source):
         if not s or s in seen or len(s) < 2 or _in_secret_span(s):
             continue
         seen.add(s)
-        secret_label = find_secret(s)
-        if secret_label:
+        secret_detail = find_secret_detail(s)
+        if secret_detail:
+            label, severity = secret_detail
             findings.append({"kind": "secret", "value": s,
-                             "detail": secret_label, "source": source})
+                             "detail": label, "severity": severity,
+                             "source": source})
         elif is_endpoint(s):
             findings.append({"kind": "endpoint", "value": s,
                              "detail": "", "source": source,
@@ -187,5 +200,7 @@ def dedupe(findings):
                      "detail": f["detail"], "sources": [f["source"]]}
             if "score" in f:  # score is deterministic per value, keep it
                 entry["score"] = f["score"]
+            if "severity" in f:  # likewise deterministic per pattern
+                entry["severity"] = f["severity"]
             merged[key] = entry
     return list(merged.values())
