@@ -6,8 +6,17 @@ Three buckets:
 - interesting: long base64/hex blobs that smell like encoded data
 """
 import re
+from urllib.parse import urljoin
 
 QUOTED_RE = re.compile(r"[\"'`]([^\"'`]{1,500})[\"'`]")
+
+# Dynamic import calls: import("./chunk.js"), await import("../lib.js").
+# Bare module names ("react") are not paths and are skipped; only
+# relative (./, ../), root-relative (/) and absolute-URL specifiers
+# become endpoints. Template placeholders (${...}) are unresolvable
+# and skipped.
+DYNAMIC_IMPORT_RE = re.compile(r"\bimport\s*\(\s*[\"'`]([^\"'`]+)[\"'`]\s*\)")
+_URL_SOURCE_RE = re.compile(r"^https?://\S+$")
 
 # (label, severity, compiled pattern) — order matters: first match wins.
 # Severity: HIGH = live credential usable as-is (cloud keys, private keys,
@@ -127,6 +136,50 @@ def is_interesting(s):
     return None
 
 
+def resolve_import_specifier(spec, source):
+    """Resolve a dynamic-import specifier to an endpoint value.
+
+    Relative and root-relative specifiers resolve against the script
+    URL when *source* is a plain URL; source-map labels (``"<url>
+    [source map: <path>]"``) are not URLs, so the raw specifier is
+    kept — the chunk name is still recon-worthy. Returns ``None`` for
+    specifiers that are not paths (bare module names, template
+    placeholders).
+    """
+    spec = spec.strip()
+    if not spec or "${" in spec or any(ch.isspace() for ch in spec):
+        return None
+    if spec.startswith("//"):
+        return None
+    if re.match(r"^(https?|wss?)://", spec):
+        return spec
+    if spec.startswith(("./", "../", "/")):
+        if _URL_SOURCE_RE.match(source):
+            return urljoin(source, spec)
+        return spec
+    return None
+
+
+def extract_dynamic_imports(js_text, source):
+    """Pull ``import(...)`` specifiers out as endpoint findings.
+
+    Plain quoted-string extraction misses ``./``-relative paths
+    (``is_endpoint`` only accepts absolute URLs and root-relative
+    routes), so code-split chunks loaded via dynamic import never
+    showed up. Each specifier becomes an endpoint with detail
+    "dynamic import", scored like any other endpoint.
+    """
+    findings = []
+    for m in DYNAMIC_IMPORT_RE.finditer(js_text):
+        value = resolve_import_specifier(m.group(1), source)
+        if value is None:
+            continue
+        findings.append({"kind": "endpoint", "value": value,
+                         "detail": "dynamic import", "source": source,
+                         "score": score_endpoint(value)})
+    return findings
+
+
 def extract(js_text, source):
     """Pull findings out of one JS file.
 
@@ -148,6 +201,19 @@ def extract(js_text, source):
                              "detail": label, "severity": severity,
                              "source": source})
             secret_spans.append((m.start(), m.end()))
+    # Dynamic imports first: dedupe keeps the first detail for a value,
+    # so a chunk also quoted elsewhere still reads "dynamic import".
+    for f in extract_dynamic_imports(js_text, source):
+        if not any(a <= js_text.find(f["value"]) < b
+                   for a, b in secret_spans):
+            findings.append(f)
+    # Raw specifiers already covered by the import pass are claimed, so
+    # the quoted-string pass below does not re-report the same path
+    # once as a relative string and once as a resolved URL.
+    claimed = set()
+    for m in DYNAMIC_IMPORT_RE.finditer(js_text):
+        if resolve_import_specifier(m.group(1), source) is not None:
+            claimed.add(m.group(1).strip())
     seen = set()
 
     def _in_secret_span(s):
@@ -157,7 +223,7 @@ def extract(js_text, source):
 
     for raw in QUOTED_RE.findall(js_text):
         s = raw.strip()
-        if not s or s in seen or len(s) < 2 or _in_secret_span(s):
+        if not s or s in seen or s in claimed or len(s) < 2 or _in_secret_span(s):
             continue
         seen.add(s)
         secret_detail = find_secret_detail(s)

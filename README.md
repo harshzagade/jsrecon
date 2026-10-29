@@ -216,6 +216,16 @@ the scan duration in seconds.
 }
 ```
 
+## Dynamic imports
+
+Code-split chunks loaded via `import("./chunk.js")` are reported as
+endpoints with detail "dynamic import": plain quoted-string extraction
+misses `./`-relative paths, so chunks never showed up. Relative and
+root-relative specifiers resolve against the script file's URL
+(`../lib.js` walks one level up); bare module names (`react`) and
+template placeholders (`` `./chunk-${name}.js` ``) are skipped, since
+they are not fetchable paths.
+
 ## HTML report (`--html`)
 
 `--html` writes a single self-contained HTML file (no external
