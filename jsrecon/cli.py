@@ -2,6 +2,7 @@
 import argparse
 import re
 import sys
+import time
 
 from . import __version__, sourcemap
 from .comments import extract_comments
@@ -61,6 +62,7 @@ def build_parser():
 
 
 def main(argv=None):
+    started = time.monotonic()
     args = build_parser().parse_args(argv)
     if args.secrets_only and args.endpoints_only:
         print("error: --secrets-only and --endpoints-only are mutually exclusive",
@@ -173,7 +175,8 @@ def main(argv=None):
     if args.json:
         out = render_json(findings, args.url, script_count, errors, mode=mode,
                           min_score=args.min_score, dropped=dropped,
-                          excluded=excluded)
+                          excluded=excluded,
+                          duration=time.monotonic() - started)
     elif args.html:
         out = render_html(findings, args.url, script_count, errors, only=only,
                           mode=mode, min_score=args.min_score, dropped=dropped,

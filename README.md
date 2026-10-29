@@ -198,6 +198,24 @@ the same filtering as ENDPOINTS (so `--secrets-only` hides it).
   q (1 endpoint(s)): /search?q=x
 ```
 
+## JSON stats block (`--json`)
+
+`--json` output carries a `stats` block next to the `findings` array
+for pipeline consumers: per-kind finding counts (every known kind,
+zero when absent), the total, the number of script files fetched, and
+the scan duration in seconds.
+
+```json
+"stats": {
+  "total_findings": 12,
+  "scripts_fetched": 2,
+  "findings_by_kind": {"endpoint": 8, "secret": 1, "interesting": 0,
+                       "framework": 1, "comment": 2, "sourcemap": 0,
+                       "header": 0},
+  "duration_seconds": 1.423
+}
+```
+
 ## HTML report (`--html`)
 
 `--html` writes a single self-contained HTML file (no external

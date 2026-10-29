@@ -152,6 +152,23 @@ def render_html(findings, page_url, script_count, errors, only=None,
     return "".join(parts)
 
 
+def build_stats(findings, script_count, duration=None):
+    """Summarise a scan for pipeline consumers.
+
+    Per-kind finding counts cover every known kind (zero when absent),
+    plus the total, the number of script files fetched, and the scan
+    duration in seconds (``None`` when the caller did not measure one).
+    """
+    counts = {kind: sum(1 for f in findings if f["kind"] == kind)
+              for kind, _title, _marker in _KINDS}
+    stats = {"total_findings": len(findings),
+             "scripts_fetched": script_count,
+             "findings_by_kind": counts,
+             "duration_seconds": (round(duration, 3) if duration is not None
+                                  else None)}
+    return stats
+
+
 def _verify_suffix(f):
     state = f["verified"]
     status = f.get("http_status")
@@ -165,7 +182,7 @@ def _short(value, limit=90):
 
 
 def render_json(findings, page_url, script_count, errors, mode="live",
-                min_score=0, dropped=0, excluded=0):
+                min_score=0, dropped=0, excluded=0, duration=None):
     return json.dumps({
         "target": page_url,
         "mode": mode,
@@ -175,5 +192,6 @@ def render_json(findings, page_url, script_count, errors, mode="live",
         "endpoints_dropped": dropped,
         "scripts_excluded": excluded,
         "query_params": collect_params(findings),
+        "stats": build_stats(findings, script_count, duration),
         "findings": findings,
     }, indent=2)
