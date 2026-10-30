@@ -12,6 +12,7 @@ from .headers import check_js_headers
 from .fetch import (DEFAULT_UA, FetchError, fetch_js_sources,
                     fetch_wayback_js)
 from .report import render_html, render_json, render_text
+from .storage import extract_storage
 from .verify import attach_verification, verify_endpoints
 
 
@@ -123,6 +124,7 @@ def main(argv=None):
         findings.extend(extract(js_text, source))
         findings.extend(fingerprint(js_text, source))
         findings.extend(extract_comments(js_text, source))
+        findings.extend(extract_storage(js_text, source))
     script_count = len(scripts)
     if not args.no_sourcemaps:
         # Mine source maps: original paths become findings, and any embedded
@@ -140,6 +142,7 @@ def main(argv=None):
                 findings.extend(extract(text, label))
                 findings.extend(fingerprint(text, label))
                 findings.extend(extract_comments(text, label))
+                findings.extend(extract_storage(text, label))
     if headers_out is not None:
         # Inline blocks have no response headers, so only fetched files
         # appear here; source-map contents reuse their parent's headers

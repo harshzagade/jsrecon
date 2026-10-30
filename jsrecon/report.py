@@ -11,6 +11,7 @@ _KINDS = (("endpoint", "ENDPOINTS", "  "),
           ("secret", "SECRETS", "[!] "),
           ("interesting", "INTERESTING", "[~] "),
           ("comment", "COMMENTS", "[c] "),
+          ("storage", "STORAGE", "[s] "),
           ("sourcemap", "SOURCE MAPS", "[*] "),
           ("header", "HEADERS", "[h] "))
 

@@ -236,6 +236,15 @@ bundle cannot break out of the report. `--html` and `--json` are
 mutually exclusive; combine with `-o` to write the file, or read it
 from stdout.
 
+## Storage and cookie keys
+
+`localStorage`/`sessionStorage` keys (method calls and bracket access)
+and cookie names set via `document.cookie` are reported in a STORAGE
+section as `localStorage:auth_token`, `sessionStorage:user_id` or
+`cookie:session` — only key names, never stored values. The same key
+held in two stores stays two findings. Template-literal keys containing
+`${...}` are skipped, since the real key is not knowable from the text.
+
 ## Notes
 
 - Passive recon aid: it only GETs the page and its own script files.
