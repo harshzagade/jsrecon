@@ -1,5 +1,6 @@
 """CLI: jsrecon <url> [options]."""
 import argparse
+import datetime
 import re
 import sys
 import time
@@ -31,6 +32,9 @@ def build_parser():
                         "Machine CDX API instead of live-fetching")
     p.add_argument("--wayback-max", type=int, default=50, metavar="N",
                    help="max archived JS files to download (default 50)")
+    p.add_argument("--wayback-before", metavar="DATE",
+                   help="with --wayback, only use captures up to this date "
+                        "(YYYY-MM-DD, whole day included)")
     p.add_argument("--timeout", type=float, default=10.0,
                    help="per-request timeout in seconds (default 10)")
     p.add_argument("--user-agent", default=DEFAULT_UA,
@@ -91,12 +95,24 @@ def main(argv=None):
         print("error: --include-inline is not supported with --wayback "
               "(no live page is fetched)", file=sys.stderr)
         return 2
+    if args.wayback_before and not args.wayback:
+        print("error: --wayback-before requires --wayback",
+              file=sys.stderr)
+        return 2
+    if args.wayback_before:
+        try:
+            datetime.date.fromisoformat(args.wayback_before)
+        except ValueError:
+            print(f"error: --wayback-before must be YYYY-MM-DD, got "
+                  f"{args.wayback_before!r}", file=sys.stderr)
+            return 2
     headers_out = {} if args.headers else None
     try:
         if args.wayback:
             scripts, errors = fetch_wayback_js(
                 args.url, timeout=args.timeout, user_agent=args.user_agent,
-                max_files=args.wayback_max, headers_out=headers_out)
+                max_files=args.wayback_max, headers_out=headers_out,
+                before=args.wayback_before)
             mode = "wayback"
         else:
             scripts, errors = fetch_js_sources(

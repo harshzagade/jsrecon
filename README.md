@@ -103,6 +103,9 @@ the Wayback Machine CDX API: queries `web.archive.org/cdx/search/cdx` for
 and downloads up to `--wayback-max` snapshots (default 50, newest first)
 via `https://web.archive.org/web/<timestamp>id_/<url>`. Source-map probing
 applies to archived files too — old maps are often still in the archive.
+`--wayback-before DATE` (YYYY-MM-DD) restricts the scan to captures up
+to the end of that day, for auditing what a site exposed at a point in
+time; it requires `--wayback` and rejects a malformed date.
 
 ```
 $ jsrecon https://target.com --wayback

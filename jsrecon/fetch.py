@@ -1,4 +1,5 @@
 """Fetch HTML pages and their linked JavaScript files. Stdlib only."""
+import datetime
 import json
 import re
 import urllib.request
@@ -74,15 +75,44 @@ def fetch_js_sources(page_url, timeout=10.0, user_agent=DEFAULT_UA,
     return scripts, errors
 
 
+def _before_limit(before):
+    """Normalise a ``before`` cutoff to a CDX timestamp upper bound.
+
+    Accepts a ``"YYYY-MM-DD"`` string or a ``datetime.date``; returns
+    ``"YYYYMMDD235959"`` (end of that day, so the whole day's captures
+    count) or ``None`` when no cutoff was given. Raises ``ValueError``
+    on a malformed date string.
+    """
+    if before is None:
+        return None
+    if isinstance(before, str):
+        try:
+            day = datetime.date.fromisoformat(before)
+        except ValueError as exc:
+            raise ValueError(
+                f"--wayback-before must be YYYY-MM-DD, got {before!r}") from exc
+    else:
+        day = before
+    return day.strftime("%Y%m%d") + "235959"
+
+
 def fetch_wayback_js(page_url, timeout=10.0, user_agent=DEFAULT_UA,
                      max_files=50, cdx_base=CDX_API,
-                     archive_prefix=ARCHIVE_PREFIX, headers_out=None):
+                     archive_prefix=ARCHIVE_PREFIX, headers_out=None,
+                     before=None):
     """Pull the target domain's archived JS from the Wayback CDX API.
 
     Queries CDX for ``*.js`` captures under the target's host, keeps the
     newest capture per URL, and downloads up to *max_files* snapshots
     (newest first) via ``<archive_prefix><timestamp>id_/<original>`` — the
     ``id_`` suffix returns the raw, unrewritten file.
+
+    When *before* is given (``"YYYY-MM-DD"`` or a ``datetime.date``),
+    only captures up to the end of that day are considered, so a scan
+    audits what the site exposed at a point in time rather than today.
+    The cutoff is enforced both in the CDX query (``to=``) and when
+    reading rows, so a CDX endpoint that ignores ``to=`` cannot leak
+    newer captures through.
 
     Returns ``(scripts, errors)`` shaped like :func:`fetch_js_sources` —
     source labels are the archived snapshot URLs, so relative
@@ -94,8 +124,11 @@ def fetch_wayback_js(page_url, timeout=10.0, user_agent=DEFAULT_UA,
     host = urlparse(page_url).hostname
     if not host:
         raise FetchError(f"cannot determine host from {page_url!r}")
+    limit = _before_limit(before)
     query = (f"{cdx_base}?url={quote(host + '/*.js')}&output=json"
              f"&filter=statuscode:200&limit={WAYBACK_CDX_LIMIT}")
+    if limit:
+        query += f"&to={limit}"
     try:
         raw = _get(query, timeout, user_agent)[0]
         rows = json.loads(raw)
@@ -116,6 +149,8 @@ def fetch_wayback_js(page_url, timeout=10.0, user_agent=DEFAULT_UA,
             ts, orig = row[ts_i], row[url_i]
         except IndexError:
             continue
+        if limit and ts > limit:
+            continue  # newer than the --wayback-before cutoff
         if not orig or urlparse(orig).scheme not in ("http", "https"):
             continue
         if orig not in newest or ts > newest[orig]:
