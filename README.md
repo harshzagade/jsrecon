@@ -257,6 +257,13 @@ section as `localStorage:auth_token`, `sessionStorage:user_id` or
 `cookie:session` — only key names, never stored values. The same key
 held in two stores stays two findings. Template-literal keys containing
 `${...}` are skipped, since the real key is not knowable from the text.
+Cookie writes are also audited: a cookie set without `Secure`,
+`HttpOnly` or `SameSite` gets a `missing ...` detail note (e.g.
+`missing Secure, HttpOnly, SameSite: cookie:session`). Note that a
+`document.cookie` write can never actually set `HttpOnly` (browsers
+ignore it there), so JS-set cookies flag it in practice; only a server
+`Set-Cookie` header can grant it. When one file sets the same cookie
+twice, the worst case (most missing attributes) is kept.
 
 ## Notes
 
