@@ -8,6 +8,8 @@ Three buckets:
 import re
 from urllib.parse import urljoin
 
+from .jwt import decode_jwt_claims
+
 QUOTED_RE = re.compile(r"[\"'`]([^\"'`]{1,500})[\"'`]")
 
 # Dynamic import calls: import("./chunk.js"), await import("../lib.js").
@@ -197,9 +199,15 @@ def extract(js_text, source):
             value = m.group(0)
             if len(value) > 140:
                 value = value[:140] + "..."
-            findings.append({"kind": "secret", "value": value,
-                             "detail": label, "severity": severity,
-                             "source": source})
+            finding = {"kind": "secret", "value": value,
+                       "detail": label, "severity": severity,
+                       "source": source}
+            if label == "JWT":
+                # Decode only: claim names are listed, never verified.
+                claims = decode_jwt_claims(value)
+                if claims:
+                    finding["claims"] = claims
+            findings.append(finding)
             secret_spans.append((m.start(), m.end()))
     # Dynamic imports first: dedupe keeps the first detail for a value,
     # so a chunk also quoted elsewhere still reads "dynamic import".
@@ -229,9 +237,14 @@ def extract(js_text, source):
         secret_detail = find_secret_detail(s)
         if secret_detail:
             label, severity = secret_detail
-            findings.append({"kind": "secret", "value": s,
-                             "detail": label, "severity": severity,
-                             "source": source})
+            finding = {"kind": "secret", "value": s,
+                       "detail": label, "severity": severity,
+                       "source": source}
+            if label == "JWT":
+                claims = decode_jwt_claims(s)
+                if claims:
+                    finding["claims"] = claims
+            findings.append(finding)
         elif is_endpoint(s):
             findings.append({"kind": "endpoint", "value": s,
                              "detail": "", "source": source,
@@ -268,5 +281,7 @@ def dedupe(findings):
                 entry["score"] = f["score"]
             if "severity" in f:  # likewise deterministic per pattern
                 entry["severity"] = f["severity"]
+            if "claims" in f:  # deterministic per token value
+                entry["claims"] = f["claims"]
             merged[key] = entry
     return list(merged.values())

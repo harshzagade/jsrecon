@@ -239,6 +239,16 @@ bundle cannot break out of the report. `--html` and `--json` are
 mutually exclusive; combine with `-o` to write the file, or read it
 from stdout.
 
+## JWT claim names
+
+JWT findings carry their payload's top-level claim names, decoded from
+the middle segment and shown as `(claims: sub, role, exp)` in text and
+HTML reports (and as a `claims` field in JSON). This is decode only:
+the signature is never verified, so the claims are what the token
+*asserts*, not verified facts. Tokens whose payload is not JSON, or
+not a JSON object, are still reported as JWT secrets, just without a
+claim list.
+
 ## Storage and cookie keys
 
 `localStorage`/`sessionStorage` keys (method calls and bracket access)

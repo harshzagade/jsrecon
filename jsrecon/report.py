@@ -21,6 +21,8 @@ def _append_finding(lines, f, marker, indent=None):
     sev = f"[{f['severity']}] " if "severity" in f else ""
     label = (f"{prefix}{sev}{f['detail'] + ': ' if f['detail'] else ''}"
              f"{_short(f['value'])}")
+    if "claims" in f:
+        label += f" (claims: {', '.join(f['claims'])})"
     if "verified" in f:
         label += _verify_suffix(f)
     lines.append(label)
@@ -137,6 +139,8 @@ def render_html(findings, page_url, script_count, errors, only=None,
         for f in group:
             sev = f"[{f['severity']}] " if "severity" in f else ""
             label = f"{f['kind']}: {sev}{f['detail'] + ': ' if f['detail'] else ''}{f['value']}"
+            if "claims" in f:
+                label += f" (claims: {', '.join(f['claims'])})"
             if "verified" in f:
                 label += _verify_suffix(f)
             parts.append(f"<li>{esc(label)}")
